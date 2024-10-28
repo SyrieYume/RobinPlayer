@@ -253,6 +253,7 @@ char *s =                                                                       
 "9zg1N9jFx+mVdbiCUWfA8BgiMVfSMWeyITeiIUeCETeCMUeSMSdB4Rcx4TcRwRbhsQbhsRcB0RcR8Rch8VcR8WciAVcyEWdCEXdSAVeyUWgSgXgicXhCkYhywYji4amDEbqUEgtEkrtEE5qSwjfx4XqIWi9ubz59HvjHGtgF6liGWwg1yeAAA=";
 
 #include <stdio.h>
+#include <io.h>
 #include <windows.h>
 #include <time.h>
 
@@ -353,7 +354,11 @@ void decodeDatas() {
 
     char *base64_ptr = s;
 
-    for(int i = 0; i < 4; ++i) {
+    for(int i = 0; i < 4; base64_ptr += lengths[i], i++) {
+        // 判断文件存在，就跳过这个文件
+        if(_access(files[i], 0) == 0)
+            continue;
+
         FILE *fp;
         fopen_s(&fp, files[i], "wb");
         if(fp) {
@@ -364,8 +369,6 @@ void decodeDatas() {
             fclose(fp);
         }
         else error("写入文件时出错！");
-
-        base64_ptr += lengths[i];
     }
 }
 
