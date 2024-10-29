@@ -1,4 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS 1
+#ifndef MIN
+#define MIN(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
 const char *s =                                                                                                                                                                                            "TVRoZA"                                                                                                         
                                                                                                                                                                                          "AAAA"                                                                                                             
                                                                                                                                                                                                                                                                                                             
@@ -434,8 +437,8 @@ BOOLEAN readBitmap(const char* filePath, BitmapImage* image) {
 void displayImage(BitmapImage image, int posX, int posY) {
     int bufferIndex = 0;
     int x, y;
-    int displayWidth = min(FRAME_WIDTH - posX, image.width);
-    int displayHeight = min(FRAME_HEIGHT - posY, image.height);
+    int displayWidth = MIN(FRAME_WIDTH - posX, image.width);
+    int displayHeight = MIN(FRAME_HEIGHT - posY, image.height);
 
     bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer), "\033[0m");
     for (y = 0; y < displayHeight; y++) {
@@ -600,7 +603,7 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
 
         else if (i < 22) {
             j = i - 4;
-            end = min(end, lineNums);
+            end = MIN(end, lineNums);
         }
 
         // 彩蛋
