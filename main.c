@@ -384,7 +384,7 @@ BOOLEAN enableVTMode() {
     if (!GetConsoleMode(hOut, &dwMode))
         return FALSE;
 
-    dwMode |= 0x0004;
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     if (!SetConsoleMode(hOut, dwMode))
         return FALSE;
 
@@ -503,7 +503,7 @@ BOOLEAN readLyricFile(const char* filePath, LyricLine** lyrics, int* lineNums) {
     LyricLine* _lyrics = (LyricLine*)malloc(sizeof(LyricLine) * size);
 
     while(fgets(line, 200, fp)) {
-        if(sscanf(line, "[%02d:%02d.%03d]%[^(] (%[^)])", &minutes, &seconds, &milliseconds, lyric, translation) == 5) {
+        if(sscanf_s(line, "[%02d:%02d.%03d]%[^(] (%[^)])", &minutes, &seconds, &milliseconds, lyric, 100, translation, 100) == 5) {
             if(i == size) {
                 size += 10;
                 _lyrics = (LyricLine*)realloc(_lyrics, sizeof(LyricLine) * size);
@@ -627,26 +627,30 @@ int main() {
     system("chcp 65001");
     SetConsoleOutputCP(CP_UTF8);
 
+
     // 设置控制台字体为黑体，防止出现乱码
     CONSOLE_FONT_INFOEX cfi;
     cfi.cbSize = sizeof(cfi);
     cfi.dwFontSize.Y = 16;
-    wcscpy(cfi.FaceName, L"SimHei");
+    wcscpy_s(cfi.FaceName, 32, L"SimHei");
 
     SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
     
-
-    system("mode con cols=121 lines=31"); // 设置控制台大小
-    printf("\033[?25l");  // 隐藏光标
-
+    
     // 获取控制台的HANDLE
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     if(hConsole == INVALID_HANDLE_VALUE)
         error("获取控制台句柄失败！");
 
+
     // 启用Windows虚拟终端序列支持
     if(!enableVTMode())
         error("无法开启终端虚拟序列支持！");
+
+
+    system("mode con cols=121 lines=31"); // 设置控制台大小
+    printf("\033[?25l");  // 隐藏光标
+
 
     // 解码数据
     decodeDatas();
@@ -660,7 +664,6 @@ int main() {
     readBitmap(PIC2_PATH, &pic2);
     readLyricFile(LYRIC_FILE_PATH, &lyrics, &lyricLineNums);
     displayImage(pic1, FRAME_WIDTH - pic1.width, FRAME_HEIGHT - pic1.height);
-
 
     playMusic(MID_FILE_PATH);
     playLyrics(lyrics, lyricLineNums);
