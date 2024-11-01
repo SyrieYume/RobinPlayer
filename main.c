@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS 1
+// clang-format off
 const char *s =                                                                                                                                                                                            "TVRoZA"                                                                                                         
                                                                                                                                                                                          "AAAA"                                                                                                             
                                                                                                                                                                                                                                                                                                             
@@ -252,16 +252,25 @@ const char *s =                                                                 
 "4ssD4tsj4utD4xuEI3si4gpzk10KW317/jtYW1oF+KpGKHq2uLqm+Ko2mDn2iClWV8i192h1xyiF50hV5xhV1xkmR7o3KLkGZ+gFlyhFt2il56lmaEmWaJjlyChlF4i1iOnny2t5KxsWBfoCIJpisRojMfnTEcmTAamC8ZlzEajy8ZiCoWhigXgycVgCYWfyUXfiQXfSMWgCQXgiYZgCMVhCcVjCwakC4bkS8bjiwaki4bli8cmTEfoTMht0IltjshrCkSgSAcrZa9//////v/tZ/Pc1ehi2exiWOuhF6jci"
 "YTeCgUdicUdScUdScUdCYUciYUdCYUdCYTdSYVdykaeC0cfDUhgTsogTsngjkigjccfjEVfC8TfTAUfDAXfTAYgDEafC4aeiwYeCkXeCcXdyYXeScXeScXeSgXeCcWgioZgywafCgVgikYgSsYgSsZgiwagi0bgy4bhC4chi4chy4diS4eii4ejC8gkTEilzQkmTQlnTQpniUYlBsRrV5gwI6eqnWam16Gl1p9k1t6mF98jVt0hVhwiVxxiVxzi150j2F3jWB2h1xyiV51jGB5il94jmF8kGCAhlh6flB0fU"
 "9zg1N9jFx+mVdbiCUWfA8BgiMVfSMWeyITeiIUeCETeCMUeSMSdB4Rcx4TcRwRbhsQbhsRcB0RcR8Rch8VcR8WciAVcyEWdCEXdSAVeyUWgSgXgicXhCkYhywYji4amDEbqUEgtEkrtEE5qSwjfx4XqIWi9ubz59HvjHGtgF6liGWwg1yeAAA=";
-
+// clang-format on
 #include <stdio.h>
-#include <io.h>
-#include <windows.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
+#define __USE_XOPEN_EXTENDED
+#include <unistd.h>
 #include <time.h>
+#include <signal.h>
 
-#define error(message) { printf(message "\n"); fflush(stdout); system("pause"); exit(-1); }
+#define error(message)        \
+    {                         \
+        printf(message "\n"); \
+        fflush(stdout);       \
+        getchar();            \
+        exit(-1);             \
+    }
 
 #ifndef MIN
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
@@ -275,60 +284,69 @@ const char *s =                                                                 
 
 #define FRAME_WIDTH 120
 #define FRAME_HEIGHT 30
-#define DELAY 1000  // 歌词播放延迟，用于让歌词与声音对齐
-#define CHARACTER "#"   // 在控制台用来显示图片的字符
+#define DELAY 1000    // 歌词播放延迟，用于让歌词与声音对齐
+#define CHARACTER "#" // 在控制台用来显示图片的字符
 
-
+typedef unsigned char BYTE;
+typedef int BOOLEAN;
+#define FALSE 0
+#define TRUE 1
 
 #pragma pack(1)
-typedef struct {
+typedef struct
+{
     unsigned char B, G, R;
 } Pixel, ColorBGR;
 
-
-typedef struct {
+typedef struct
+{
     int width, height;
-    Pixel* pixels;
+    Pixel *pixels;
 } BitmapImage;
 
-
-typedef struct {
+typedef struct
+{
     int time;
     char lyric[100];
     char translation[100];
 } LyricLine;
 
-
-
 char strBuffer[(FRAME_WIDTH + 1) * (FRAME_HEIGHT + 1) * 24]; // 字符缓冲
-
-HANDLE hConsole; // 控制台句柄
 
 BitmapImage pic1, pic2; // 两张图片
 
-LyricLine* lyrics; // 歌词数据
+LyricLine *lyrics; // 歌词数据
 int lyricLineNums; // 歌词的行数
 
-
-
-
 // Base64编码和解码表
-const char* encode_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-const char* decode_table = "                                           \x3e   \x3f\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d       \x0\x1\x2\x3\x4\x5\x6\x7\x8\x9\xa\xb\xc\xd\xe\xf\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19      \x1a\x1b\x1c\x1d\x1e\x1f\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33     ";
+const char *encode_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+const char *decode_table = "                                           \x3e   \x3f\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d       \x0\x1\x2\x3\x4\x5\x6\x7\x8\x9\xa\xb\xc\xd\xe\xf\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19      \x1a\x1b\x1c\x1d\x1e\x1f\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33     ";
+
+// 音乐开始播放的时间
+time_t start;
+
+// 停止信号, 用来响应 ^C
+volatile sig_atomic_t stop = 0;
+void handle_sigint(int sig)
+{
+    stop = 1;
+}
 
 // base64字符串解码
-BYTE* base64_decode(const char* source_str, int source_str_length, int* decoded_data_size) {
-    
+BYTE *base64_decode(const char *source_str, int source_str_length, int *decoded_data_size)
+{
+
     // 计算解码后数据的大小
     *decoded_data_size = source_str_length * 3 / 4;
 
     // 申请内存空间
-    BYTE* decoded_data = (BYTE*)malloc(sizeof(BYTE) * (*decoded_data_size + 1));
-    BYTE* decoded_ptr = decoded_data;
+    BYTE *decoded_data = (BYTE *)malloc(sizeof(BYTE) * (*decoded_data_size + 1));
+    BYTE *decoded_ptr = decoded_data;
 
     // 首先，4个字符一组，进行解码
     int n = (source_str_length + 3) / 4 - 1;
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i)
+    {
         char d1 = decode_table[source_str[0]], d2 = decode_table[source_str[1]],
              d3 = decode_table[source_str[2]], d4 = decode_table[source_str[3]];
         decoded_ptr[0] = (d1 << 2) | (d2 >> 4);
@@ -340,8 +358,10 @@ BYTE* base64_decode(const char* source_str, int source_str_length, int* decoded_
 
     // 对剩下的字符进行解码
     n = source_str_length - 4 * n - 1;
-    while (n > 0) {
-        if (source_str[1] == encode_table[64]) break;
+    while (n > 0)
+    {
+        if (source_str[1] == encode_table[64])
+            break;
         *decoded_ptr = decode_table[source_str[0]] << (8 - n * 2) | decode_table[source_str[1]] >> (n * 2 - 2);
         decoded_ptr++;
         source_str++;
@@ -354,91 +374,69 @@ BYTE* base64_decode(const char* source_str, int source_str_length, int* decoded_
     return decoded_data;
 }
 
-
-
-
 // 解码出4个文件的数据，并且写入文件
-void decodeDatas() {
-    const char* files[] = { MID_FILE_PATH, LYRIC_FILE_PATH, PIC1_PATH, PIC2_PATH };
-    int lengths[] = { 14016, 3244, 5484, 14476 };
+void decodeDatas()
+{
+    const char *files[] = {MID_FILE_PATH, LYRIC_FILE_PATH, PIC1_PATH, PIC2_PATH};
+    int lengths[] = {14016, 3244, 5484, 14476};
 
-    const char* base64_ptr = s;
+    const char *base64_ptr = s;
 
-    for (int i = 0; i < 4; base64_ptr += lengths[i], i++) {
+    for (int i = 0; i < 4; base64_ptr += lengths[i], i++)
+    {
         // 判断文件存在，就跳过这个文件
-        if (_access(files[i], 0) == 0)
+        FILE *fp = fopen(files[i], "rb");
+        if (fp)
+        {
+            fclose(fp);
             continue;
+        }
 
-        FILE* fp;
-        fopen_s(&fp, files[i], "wb");
+        fp = fopen(files[i], "wb");
 
-        if (fp) {
+        if (fp)
+        {
             int dataSize;
-            BYTE* data = base64_decode(base64_ptr, lengths[i], &dataSize);
-            
+            BYTE *data = base64_decode(base64_ptr, lengths[i], &dataSize);
+
             fwrite(data, sizeof(BYTE), dataSize, fp);
-            
+
             free(data);
             fclose(fp);
         }
-        else error("写入文件时出错！");
+        else
+            error("写入文件时出错！");
     }
 }
 
-
-
-// 开启Windows的虚拟终端序列支持
-BOOLEAN enableVTMode() {
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE)
-        return FALSE;
-
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode))
-        return FALSE;
-
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (!SetConsoleMode(hOut, dwMode))
-        return FALSE;
-
-    return TRUE;
-}
-
-
-
-
 // 设置控制台的光标到 (x, y)
-void setCursorPos(int x, int y) {
-    COORD coord;
-    coord.X = x;
-    coord.Y = y;
-    SetConsoleCursorPosition(hConsole, coord);
+void setCursorPos(int x, int y)
+{
+    printf("\033[%d;%dH", y + 1, x + 1);
+    fflush(stdout);
 }
-
-
-
 
 // 读取Bitmap图片
-BOOLEAN readBitmap(const char* filePath, BitmapImage* image) {
-    FILE* fp = fopen(filePath, "rb");
+BOOLEAN readBitmap(const char *filePath, BitmapImage *image)
+{
+    FILE *fp = fopen(filePath, "rb");
     if (!fp)
         return FALSE;
 
     // 读取Bitmap的文件头部分
-    BITMAPFILEHEADER fileHeader;
-    BITMAPINFOHEADER infoHeader;
-    fread(&fileHeader, sizeof(BITMAPFILEHEADER), 1, fp);
-    fread(&infoHeader, sizeof(BITMAPINFOHEADER), 1, fp);
-    int width = infoHeader.biWidth;
-    int height = infoHeader.biHeight;
+    fseek(fp, 18, SEEK_SET);
+    int width, height;
+    fread(&width, sizeof(int), 1, fp);
+    fread(&height, sizeof(int), 1, fp);
+    fseek(fp, 54, SEEK_SET);
 
     // 读取Bitmap图片的数据
-    Pixel* pixels = (Pixel*)malloc(sizeof(Pixel) * width * height);
+    Pixel *pixels = (Pixel *)malloc(sizeof(Pixel) * width * height);
     fread(pixels, sizeof(Pixel), width * height, fp);
     fclose(fp);
 
     // Bitmap图片的行顺序是上下颠倒的，这里把它颠倒回来
-    Pixel* temp = (Pixel*)malloc(sizeof(Pixel) * width * height);
+    Pixel *temp = (Pixel *)malloc(sizeof(Pixel) * width * height);
     for (int y = 0; y < height; y++)
         memcpy(temp + y * width, pixels + (height - y - 1) * width, width * sizeof(Pixel));
     free(pixels);
@@ -451,75 +449,88 @@ BOOLEAN readBitmap(const char* filePath, BitmapImage* image) {
     return TRUE;
 }
 
-
-
 // 在(posX, posY)处打印图片
-void displayImage(BitmapImage image, int posX, int posY) {
+void displayImage(BitmapImage image, int posX, int posY)
+{
     int bufferIndex = 0;
     int x, y;
     int displayWidth = MIN(FRAME_WIDTH - posX, image.width);
     int displayHeight = MIN(FRAME_HEIGHT - posY, image.height);
 
-    bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer), "\033[0m");
+    bufferIndex += sprintf(strBuffer + bufferIndex, "\033[0m");
 
-    for (y = 0; y < displayHeight; y++) {
+    for (y = 0; y < displayHeight; y++)
+    {
 
         // 打印posX个空格，用来占位
         for (x = 0; x < posX; x++)
             strBuffer[bufferIndex++] = ' ';
 
-        for (x = 0; x < displayWidth; x++) {
+        for (x = 0; x < displayWidth; x++)
+        {
             Pixel pixel = image.pixels[x + y * image.width];
 
             // 在像素值为纯黑的地方打印空格(相当于透明)
             if (pixel.B == 0 && pixel.G == 0 && pixel.R == 0)
                 strBuffer[bufferIndex++] = ' ';
             else
-                bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer) - bufferIndex, "\033[38;2;%d;%d;%dm" CHARACTER, pixel.R, pixel.G, pixel.B);
+                bufferIndex += sprintf(strBuffer + bufferIndex, "\033[38;2;%d;%d;%dm" CHARACTER, pixel.R, pixel.G, pixel.B);
         }
 
         strBuffer[bufferIndex++] = '\n';
     }
 
     strBuffer[bufferIndex] = '\0';
-    
+
     setCursorPos(0, posY);
-    printf(strBuffer);
+    puts(strBuffer);
     fflush(stdout);
 }
 
+BOOLEAN playMusic(const char *filePath)
+{
+    if (SDL_Init(SDL_INIT_AUDIO) < 0)
+    {
+        fprintf(stderr, "无法初始化 SDL: %s\n", SDL_GetError());
+        return 0;
+    }
 
+    // 初始化 SDL_mixer
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+    {
+        fprintf(stderr, "无法初始化 SDL_mixer: %s\n", Mix_GetError());
+        SDL_Quit();
+        return 0;
+    }
 
+    // 加载 MP3 文件
+    Mix_Music *music = Mix_LoadMUS(filePath);
+    if (music == NULL)
+    {
+        fprintf(stderr, "无法加载音频文件: %s\n", Mix_GetError());
+        Mix_CloseAudio();
+        SDL_Quit();
+        return 0;
+    }
 
-// 调用Windows的API播放mid音频 (ps: 这个API用来播放mp3音乐也是可以的~)
-BOOLEAN playMusic(const char* filePath) {
-    HMODULE module = LoadLibraryA("winmm.dll");
+    // 播放音乐
+    if (Mix_PlayMusic(music, 1) == -1)
+    {
+        fprintf(stderr, "无法播放音频: %s\n", Mix_GetError());
+        Mix_FreeMusic(music);
+        Mix_CloseAudio();
+        SDL_Quit();
+        return 0;
+    }
 
-    typedef MCIERROR(WINAPI* MciSendStringT)(LPCSTR lpstrCommand, LPSTR lpstrReturnString, UINT uReturnLength, HWND hwndCallback);
-
-    MciSendStringT func_mciSendStringA = (MciSendStringT)GetProcAddress(module, "mciSendStringA");
-    if (func_mciSendStringA == NULL)
-        return FALSE;
-
-    char buff[255], command[100];
-    sprintf_s(command, 100, "open %s alias playsound_134", filePath);
-    func_mciSendStringA(command, buff, 254, NULL);
-    sprintf_s(command, 100, "set playsound_134 time format milliseconds");
-    func_mciSendStringA(command, buff, 254, NULL);
-    sprintf_s(command, 100, "status playsound_134 length");
-    func_mciSendStringA(command, buff, 254, NULL);
-    sprintf_s(command, 100, "play playsound_134 from 0 to %s", buff);
-    func_mciSendStringA(command, buff, 254, NULL);
-    return TRUE;
+    return 1;
 }
 
-
-
-
 // 读取歌词文件数据
-BOOLEAN readLyricFile(const char* filePath, LyricLine** lyrics, int* lineNums) {
-    FILE* fp;
-    fopen_s(&fp, filePath, "r");
+BOOLEAN readLyricFile(const char *filePath, LyricLine **lyrics, int *lineNums)
+{
+    FILE *fp;
+    fp = fopen(filePath, "r");
 
     if (!fp)
         return FALSE;
@@ -528,18 +539,21 @@ BOOLEAN readLyricFile(const char* filePath, LyricLine** lyrics, int* lineNums) {
     int minutes, seconds, milliseconds;
     int size = 10, i = 0;
 
-    LyricLine* _lyrics = (LyricLine*)malloc(sizeof(LyricLine) * size);
+    LyricLine *_lyrics = (LyricLine *)malloc(sizeof(LyricLine) * size);
 
-    while (fgets(line, 200, fp)) {
-        if (sscanf_s(line, "[%02d:%02d.%03d]%[^(] (%[^)])", &minutes, &seconds, &milliseconds, lyric, 100, translation, 100) == 5) {
-            if (i == size) {
+    while (fgets(line, 200, fp))
+    {
+        if (sscanf(line, "[%02d:%02d.%03d]%[^(] (%[^)])", &minutes, &seconds, &milliseconds, lyric, translation) == 5)
+        {
+            if (i == size)
+            {
                 size += 10;
-                _lyrics = (LyricLine*)realloc(_lyrics, sizeof(LyricLine) * size);
+                _lyrics = (LyricLine *)realloc(_lyrics, sizeof(LyricLine) * size);
             }
 
             _lyrics[i].time = minutes * 60000 + seconds * 1000 + milliseconds;
-            strcpy_s(_lyrics[i].lyric, 100, lyric);
-            strcpy_s(_lyrics[i].translation, 100, translation);
+            strcpy(_lyrics[i].lyric, lyric);
+            strcpy(_lyrics[i].translation, translation);
             i += 1;
         }
     }
@@ -551,14 +565,12 @@ BOOLEAN readLyricFile(const char* filePath, LyricLine** lyrics, int* lineNums) {
     return TRUE;
 }
 
-
-
-
 // 彩蛋
-void surprise() {
+void surprise()
+{
     // 生成一个随机打乱的排序列表
     int len = pic2.width * pic2.height;
-    int* order = (int*)malloc(sizeof(int) * len);
+    int *order = (int *)malloc(sizeof(int) * len);
 
     srand(time(NULL));
     int i, j, tmp;
@@ -566,7 +578,8 @@ void surprise() {
     for (i = 0; i < len; ++i)
         order[i] = i;
 
-    for (i = len - 1; i > 0; --i) {
+    for (i = len - 1; i > 0; --i)
+    {
         j = rand() % (i + 1);
         tmp = order[i];
         order[i] = order[j];
@@ -574,7 +587,8 @@ void surprise() {
     }
 
     // 按照随机的像素点顺序显示彩蛋
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
+    {
         int pos = order[i];
 
         Pixel pixel = pic2.pixels[pos];
@@ -584,25 +598,40 @@ void surprise() {
         fflush(stdout);
 
         if (i % FRAME_WIDTH == 0)
-            Sleep(50);
+            sleep(1); // ?? ps: 原来是 50
     }
-
 }
 
-
-
 // 播放歌词
-void playLyrics(LyricLine* lyrics, int lineNums) {
-    clock_t startTime = clock() + DELAY;
+void playLyrics(LyricLine *lyrics, int lineNums)
+{
+#define _time_in_ms() ((time(NULL) - start) * 1000)
 
-    for (int i = 0; i < lineNums; ++i) {
-        
-        // 等待到第i行歌词的播放时间
-        while (clock() < lyrics[i].time + startTime) {
-            Sleep(100);
+    clock_t startTime = _time_in_ms() + DELAY;
+
+    for (int i = 0; i < lineNums; ++i)
+    {
+        if (stop)
+        {
+            break;
         }
 
-        // j表示打印歌词的开始行数，end表示打印歌词的结束行数，默认为打印 第i-4行 到 第i+3行 的7行歌词 
+        // 等待到第i行歌词的播放时间
+        while (_time_in_ms() < lyrics[i].time + startTime)
+        {
+            if (stop)
+            {
+                break;
+            }
+            usleep(100000);
+        }
+
+        if (stop)
+        {
+            break;
+        }
+
+        // j表示打印歌词的开始行数，end表示打印歌词的结束行数，默认为打印 第i-4行 到 第i+3行 的7行歌词
         int j = i - 4, end = i + 3;
 
         // 第i行歌词的高亮颜色，默认为知更鸟色
@@ -611,28 +640,33 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
         color.G = 156;
         color.R = 131;
 
-        if (i < 8) {
+        if (i < 8)
+        {
             j = 0;
             end = i;
         }
 
-        else if (i < 11) {
+        else if (i < 11)
+        {
             j = i + i - 14;
             end = i + i - 7;
         }
 
-        else if (i < 22) {
+        else if (i < 22)
+        {
             j = i - 4;
             end = MIN(end, lineNums - 1);
         }
 
         // 彩蛋
-        else if (i == 22) {
+        else if (i == 22)
+        {
             surprise();
             continue;
         }
 
-        else if (i > 22) {
+        else if (i > 22)
+        {
             j = i;
             end = i;
             color.B = 155;
@@ -640,14 +674,14 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
             color.R = 178;
         }
 
-
         // 将要打印的所有歌词写入缓冲区，然后用puts一次全部打印出来
         int bufferIndex = 0;
-        for (; j <= end; j++) {
+        for (; j <= end; j++)
+        {
             if (j == i)
-                bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer) - bufferIndex, "\033[1m\033[38;2;%d;%d;%dm%-50s\n%-50s\n\n\033[0m", color.R, color.G, color.B, lyrics[j].lyric, lyrics[j].translation);
+                bufferIndex += sprintf(strBuffer + bufferIndex, "\033[1m\033[38;2;%d;%d;%dm%-50s\n%-50s\n\n\033[0m", color.R, color.G, color.B, lyrics[j].lyric, lyrics[j].translation);
             else
-                bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer) - bufferIndex, "%-50s\n%-50s\n\n", lyrics[j].lyric, lyrics[j].translation);
+                bufferIndex += sprintf(strBuffer + bufferIndex, "%-50s\n%-50s\n\n", lyrics[j].lyric, lyrics[j].translation);
         }
 
         strBuffer[bufferIndex] = '\0';
@@ -658,41 +692,13 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
     }
 }
 
+int main()
+{
+    // 注册 SIGINT 信号处理函数
+    signal(SIGINT, handle_sigint);
 
-
-
-int main() {
-
-    // 设置控制台编码方式为utf-8
-    system("chcp 65001");
-    SetConsoleOutputCP(CP_UTF8);
-
-
-    // 设置控制台字体为黑体，防止出现乱码
-    CONSOLE_FONT_INFOEX cfi;
-    cfi.cbSize = sizeof(cfi);
-    cfi.dwFontSize.X = 8;
-    cfi.dwFontSize.Y = 16;
-    wcscpy_s(cfi.FaceName, 32, L"SimHei");
-
-    SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
-
-
-    // 获取控制台的HANDLE
-    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hConsole == INVALID_HANDLE_VALUE)
-        error("获取控制台句柄失败！");
-
-
-    // 启用Windows虚拟终端序列支持
-    if (!enableVTMode())
-        error("无法开启终端虚拟序列支持！");
-
-
-    system("mode con cols=121 lines=31"); // 设置控制台大小
-    printf("\033[0m\n"); // 清除文字样式
+    printf("\033[0m\n");   // 清除文字样式
     printf("\033[?25l\n"); // 隐藏光标
-
 
     // 解码数据
     decodeDatas();
@@ -700,7 +706,7 @@ int main() {
     // 设置控制台缓冲区大小
     setvbuf(stdout, NULL, _IOFBF, (FRAME_WIDTH + 1) * (FRAME_HEIGHT + 1) * 24);
 
-    system("cls");
+    system("clear");
 
     // 读取 图片数据 以及 歌词数据
     readBitmap(PIC1_PATH, &pic1);
@@ -712,6 +718,7 @@ int main() {
 
     // 播放音乐
     playMusic(MID_FILE_PATH);
+    start = time(NULL);
 
     // 滚动歌词
     playLyrics(lyrics, lyricLineNums);
@@ -720,9 +727,14 @@ int main() {
     free(lyrics);
     free(pic1.pixels);
     free(pic2.pixels);
+    Mix_CloseAudio();
+    SDL_Quit();
+    system("clear");
 
-    system("pause");
-    
     printf("\033[0m\n"); // 清除文字样式
+    if (stop != 1)
+    {
+        getchar();
+    }
     return 0;
 }
