@@ -256,14 +256,16 @@ const char *s =                                                                 
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#define __USE_XOPEN_EXTENDED
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
 
 #define error(message)        \
     {                         \
         printf(message "\n"); \
         fflush(stdout);       \
-        system("pause");      \
+        getchar();            \
         exit(-1);             \
     }
 
@@ -322,6 +324,13 @@ const char *decode_table = "                                           \x3e   \x
 
 // 音乐开始播放的时间
 time_t start;
+
+// 停止信号, 用来响应 ^C
+volatile sig_atomic_t stop = 0;
+void handle_sigint(int sig)
+{
+    stop = 1;
+}
 
 // base64字符串解码
 BYTE *base64_decode(const char *source_str, int source_str_length, int *decoded_data_size)
@@ -419,6 +428,7 @@ BOOLEAN readBitmap(const char *filePath, BitmapImage *image)
     int width, height;
     fread(&width, sizeof(int), 1, fp);
     fread(&height, sizeof(int), 1, fp);
+    fseek(fp, 54, SEEK_SET);
 
     // 读取Bitmap图片的数据
     Pixel *pixels = (Pixel *)malloc(sizeof(Pixel) * width * height);
@@ -588,7 +598,7 @@ void surprise()
         fflush(stdout);
 
         if (i % FRAME_WIDTH == 0)
-            sleep(50);
+            sleep(1); // ?? ps: 原来是 50
     }
 }
 
@@ -601,11 +611,24 @@ void playLyrics(LyricLine *lyrics, int lineNums)
 
     for (int i = 0; i < lineNums; ++i)
     {
+        if (stop)
+        {
+            break;
+        }
 
         // 等待到第i行歌词的播放时间
         while (_time_in_ms() < lyrics[i].time + startTime)
         {
-            sleep(0.1);
+            if (stop)
+            {
+                break;
+            }
+            usleep(100000);
+        }
+
+        if (stop)
+        {
+            break;
         }
 
         // j表示打印歌词的开始行数，end表示打印歌词的结束行数，默认为打印 第i-4行 到 第i+3行 的7行歌词
@@ -671,6 +694,9 @@ void playLyrics(LyricLine *lyrics, int lineNums)
 
 int main()
 {
+    // 注册 SIGINT 信号处理函数
+    signal(SIGINT, handle_sigint);
+
     printf("\033[0m\n");   // 清除文字样式
     printf("\033[?25l\n"); // 隐藏光标
 
@@ -703,8 +729,12 @@ int main()
     free(pic2.pixels);
     Mix_CloseAudio();
     SDL_Quit();
+    system("clear");
 
     printf("\033[0m\n"); // 清除文字样式
-    getchar();
+    if (stop != 1)
+    {
+        getchar();
+    }
     return 0;
 }
