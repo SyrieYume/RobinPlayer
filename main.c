@@ -273,10 +273,10 @@ const char *s =                                                                 
 #define PIC1_PATH "pic1.bmp"
 #define PIC2_PATH "pic2.bmp"
 
-#define FRAME_WIDTH 120
-#define FRAME_HEIGHT 30
+#define FRAME_WIDTH 120  // 控制台中显示区域的宽度
+#define FRAME_HEIGHT 30  // 控制台中显示区域的高度
 #define DELAY 1000  // 歌词播放延迟，用于让歌词与声音对齐
-#define CHARACTER "#"   // 在控制台用来显示图片的字符
+#define CHARACTER "#"  // 在控制台用来显示图片的字符
 
 
 
@@ -360,7 +360,9 @@ BYTE* base64_decode(const char* source_str, int source_str_length, int* decoded_
 // 解码出4个文件的数据，并且写入文件
 void decodeDatas() {
     const char* files[] = { MID_FILE_PATH, LYRIC_FILE_PATH, PIC1_PATH, PIC2_PATH };
-    int lengths[] = { 14016, 3244, 5484, 14476 };
+
+    // 每个文件的base64字符串的的长度
+    const int lengths[] = { 14016, 3244, 5484, 14476 };
 
     const char* base64_ptr = s;
 
@@ -424,7 +426,7 @@ BOOLEAN readBitmap(const char* filePath, BitmapImage* image) {
     if (!fp)
         return FALSE;
 
-    // 读取Bitmap的文件头部分
+    // 读取Bitmap的文件头部分，获取图片的宽度和高度值
     BITMAPFILEHEADER fileHeader;
     BITMAPINFOHEADER infoHeader;
     fread(&fileHeader, sizeof(BITMAPFILEHEADER), 1, fp);
@@ -484,7 +486,7 @@ void displayImage(BitmapImage image, int posX, int posY) {
     strBuffer[bufferIndex] = '\0';
     
     setCursorPos(0, posY);
-    printf(strBuffer);
+    puts(strBuffer);
     fflush(stdout);
 }
 
@@ -502,14 +504,19 @@ BOOLEAN playMusic(const char* filePath) {
         return FALSE;
 
     char buff[255], command[100];
+
     sprintf_s(command, 100, "open %s alias playsound_134", filePath);
     func_mciSendStringA(command, buff, 254, NULL);
+
     sprintf_s(command, 100, "set playsound_134 time format milliseconds");
     func_mciSendStringA(command, buff, 254, NULL);
+
     sprintf_s(command, 100, "status playsound_134 length");
     func_mciSendStringA(command, buff, 254, NULL);
+
     sprintf_s(command, 100, "play playsound_134 from 0 to %s", buff);
     func_mciSendStringA(command, buff, 254, NULL);
+
     return TRUE;
 }
 
@@ -531,7 +538,11 @@ BOOLEAN readLyricFile(const char* filePath, LyricLine** lyrics, int* lineNums) {
     LyricLine* _lyrics = (LyricLine*)malloc(sizeof(LyricLine) * size);
 
     while (fgets(line, 200, fp)) {
+
+        // 每行歌词的格式为 [分钟:秒.毫秒] 歌词内容 (歌词翻译)
         if (sscanf_s(line, "[%02d:%02d.%03d]%[^(] (%[^)])", &minutes, &seconds, &milliseconds, lyric, 100, translation, 100) == 5) {
+            
+            // 歌词数组的初始大小为10，如果超出大小，需要重新分配更大的内存
             if (i == size) {
                 size += 10;
                 _lyrics = (LyricLine*)realloc(_lyrics, sizeof(LyricLine) * size);
@@ -563,9 +574,11 @@ void surprise() {
     srand(time(NULL));
     int i, j, tmp;
 
+    // 首先，生成一个 0 到 (width * height) 的顺序列表
     for (i = 0; i < len; ++i)
         order[i] = i;
 
+    // 然后，随机交换其中元素的位置，完成随机打乱 (Knuth-Shuffle算法)
     for (i = len - 1; i > 0; --i) {
         j = rand() % (i + 1);
         tmp = order[i];
@@ -573,13 +586,15 @@ void surprise() {
         order[j] = tmp;
     }
 
-    // 按照随机的像素点顺序显示彩蛋
+    // 按照随机的像素点顺序打印出彩蛋
     for (i = 0; i < len; i++) {
         int pos = order[i];
+        int x = pos % pic2.width;
+        int y = pos / pic2.width;
 
         Pixel pixel = pic2.pixels[pos];
 
-        setCursorPos(pos % pic2.width, pos / pic2.width);
+        setCursorPos(x, y);
         printf("\033[38;2;%d;%d;%dm" CHARACTER, pixel.R, pixel.G, pixel.B);
         fflush(stdout);
 
@@ -611,19 +626,16 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
         color.G = 156;
         color.R = 131;
 
+        // i < 8 时，从上到下打印出0到i行的所有歌词
         if (i < 8) {
             j = 0;
             end = i;
         }
 
+        // 8 <= i < 11 时，让第i行歌词慢慢回升到中间位置
         else if (i < 11) {
             j = i + i - 14;
             end = i + i - 7;
-        }
-
-        else if (i < 22) {
-            j = i - 4;
-            end = MIN(end, lineNums - 1);
         }
 
         // 彩蛋
@@ -632,6 +644,7 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
             continue;
         }
 
+        // i > 22时，只打印第i行歌词，并且调整颜色
         else if (i > 22) {
             j = i;
             end = i;
@@ -644,6 +657,7 @@ void playLyrics(LyricLine* lyrics, int lineNums) {
         // 将要打印的所有歌词写入缓冲区，然后用puts一次全部打印出来
         int bufferIndex = 0;
         for (; j <= end; j++) {
+            // 高亮第i行的歌词
             if (j == i)
                 bufferIndex += sprintf_s(strBuffer + bufferIndex, sizeof(strBuffer) - bufferIndex, "\033[1m\033[38;2;%d;%d;%dm%-50s\n%-50s\n\n\033[0m", color.R, color.G, color.B, lyrics[j].lyric, lyrics[j].translation);
             else
@@ -689,23 +703,32 @@ int main() {
         error("无法开启终端虚拟序列支持！");
 
 
-    system("mode con cols=121 lines=31"); // 设置控制台大小
-    printf("\033[0m\n"); // 清除文字样式
-    printf("\033[?25l\n"); // 隐藏光标
+    // 设置控制台窗口大小(在 Windows Terminal 中无效)
+    system("mode con cols=121 lines=31"); 
+
+    // 清除所有文字样式
+    printf("\033[0m\n");
+
+    // 隐藏光标
+    printf("\033[?25l\n");
 
 
     // 解码数据
     decodeDatas();
 
-    // 设置控制台缓冲区大小
+
+    // 设置控制台缓冲区大小(缓冲区需要足够大才能一次把整张图片打印出来)
     setvbuf(stdout, NULL, _IOFBF, (FRAME_WIDTH + 1) * (FRAME_HEIGHT + 1) * 24);
 
-    system("cls");
+    // 控制台清屏
+    system("cls"); 
+
 
     // 读取 图片数据 以及 歌词数据
     readBitmap(PIC1_PATH, &pic1);
     readBitmap(PIC2_PATH, &pic2);
     readLyricFile(LYRIC_FILE_PATH, &lyrics, &lyricLineNums);
+
 
     // 在右下角显示第一张图片(pic1.bmp)
     displayImage(pic1, FRAME_WIDTH - pic1.width, FRAME_HEIGHT - pic1.height);
@@ -716,6 +739,7 @@ int main() {
     // 滚动歌词
     playLyrics(lyrics, lyricLineNums);
 
+
     // 释放内存
     free(lyrics);
     free(pic1.pixels);
@@ -723,6 +747,6 @@ int main() {
 
     system("pause");
     
-    printf("\033[0m\n"); // 清除文字样式
+    printf("\033[0m\n");
     return 0;
 }
