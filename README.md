@@ -1,8 +1,19 @@
 # RobinPlayer
 在控制台播放《使一颗心免于哀伤》
 
+## 项目结构
+**`main.c`** : 最终程序 RobinPlayer.exe 的代码  
+
+**`res`** : 项目使用到的资源文件
+
+**`Generator/bmp_to_binary.c`** : 将 彩色BMP图片 转换为 二值图 的程序代码  
+
+**`Generator/files_to_base64.c`** : 将 文件 转换为 base64字符串 的程序代码  
+
+**`Generator/base64_to_img.c`** : 将 base64字符串 转换为 字符画代码 的程序代码  
+
 ## 如何运行本程序
-1. 确保系统为 **Windows 10** 及以上版本。
+1. 确保系统为 **Windows 10** 及以上版本 ( Linux系统请前往 [Unix](https://github.com/Yiipu/RobinPlayer) 分支 )。
 1. 从 [Release](https://github.com/SyrieYume/RobinPlayer/releases) 下载 `RobinPlayer.exe`，或者下载源代码 `main.c` 手动编译。
 2. 双击运行程序。
 3. 将终端窗口调整到合适大小。
@@ -21,5 +32,5 @@ gcc -o RobinPlayer.exe main.c
 3. 不要直接复制粘贴代码到 Visual Studio，否则排版可能会乱，并且可能会出现编码问题。
 4. 如果出现编译错误`C2001:常量中有换行符`，需要在Visual Studio的 **高级保存选项** 中将编码改为`Unicode(UTF-8 带签名)-代码页65001`。
    
-   打开**高级保存选项**的方法：
+   打开 **高级保存选项** 的方法：
    工具 -> 自定义 -> 命令，在"菜单栏"项选择"文件"，点击"添加命令"，在"类别栏"中选择"文件"，在"命令栏"中找到"高级保存选项"，单击"确定"保存。在 Viusal Studio 主界面工具栏的"文件"中即可找到高级保存选项。
