@@ -13,8 +13,8 @@
 HANDLE hConsole; // 控制台句柄
 
 // 时钟相关，转为 Windows 下的 Sleep 函数
-#define usleep(ns) Sleep(ns / 1000000)
-#define sleep(s) Sleep(s)
+#define usleep(ns) Sleep(ns / 1000000) // 以微秒为单位, 1s = 1000000us
+#define sleep(s) Sleep(s)              // 以秒为单位
 
 // 开启Windows的虚拟终端序列支持
 BOOLEAN enableVTMode()
