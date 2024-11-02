@@ -254,27 +254,17 @@ const char *s =                                                                 
 "9zg1N9jFx+mVdbiCUWfA8BgiMVfSMWeyITeiIUeCETeCMUeSMSdB4Rcx4TcRwRbhsQbhsRcB0RcR8Rch8VcR8WciAVcyEWdCEXdSAVeyUWgSgXgicXhCkYhywYji4amDEbqUEgtEkrtEE5qSwjfx4XqIWi9ubz59HvjHGtgF6liGWwg1yeAAA=";
 // clang-format on
 #include <stdio.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
-#define __USE_XOPEN_EXTENDED
-#include <unistd.h>
 #include <time.h>
-#include <signal.h>
 
-#define error(message)        \
-    {                         \
-        printf(message "\n"); \
-        fflush(stdout);       \
-        getchar();            \
-        exit(-1);             \
-    }
+// 平台相关的头文件
+#ifdef _WIN32
+#include "win.h"
+#else
+#include "unix.h"
+#endif
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
-#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
 #endif
 
 #define MID_FILE_PATH "music.mid"
@@ -286,11 +276,6 @@ const char *s =                                                                 
 #define FRAME_HEIGHT 30
 #define DELAY 1000    // 歌词播放延迟，用于让歌词与声音对齐
 #define CHARACTER "#" // 在控制台用来显示图片的字符
-
-typedef unsigned char BYTE;
-typedef int BOOLEAN;
-#define FALSE 0
-#define TRUE 1
 
 #pragma pack(1)
 typedef struct
@@ -324,13 +309,6 @@ const char *decode_table = "                                           \x3e   \x
 
 // 音乐开始播放的时间
 time_t start;
-
-// 停止信号, 用来响应 ^C
-volatile sig_atomic_t stop = 0;
-void handle_sigint(int sig)
-{
-    stop = 1;
-}
 
 // base64字符串解码
 BYTE *base64_decode(const char *source_str, int source_str_length, int *decoded_data_size)
@@ -378,6 +356,8 @@ BYTE *base64_decode(const char *source_str, int source_str_length, int *decoded_
 void decodeDatas()
 {
     const char *files[] = {MID_FILE_PATH, LYRIC_FILE_PATH, PIC1_PATH, PIC2_PATH};
+
+    // TODO:自动确定长度
     int lengths[] = {14016, 3244, 5484, 14476};
 
     const char *base64_ptr = s;
@@ -409,13 +389,6 @@ void decodeDatas()
     }
 }
 
-// 设置控制台的光标到 (x, y)
-void setCursorPos(int x, int y)
-{
-    printf("\033[%d;%dH", y + 1, x + 1);
-    fflush(stdout);
-}
-
 // 读取Bitmap图片
 BOOLEAN readBitmap(const char *filePath, BitmapImage *image)
 {
@@ -424,6 +397,16 @@ BOOLEAN readBitmap(const char *filePath, BitmapImage *image)
         return FALSE;
 
     // 读取Bitmap的文件头部分
+    // 更直观，但在 Unix 上需要补充数据结构定义
+    /*
+    BITMAPFILEHEADER fileHeader;
+    BITMAPINFOHEADER infoHeader;
+    fread(&fileHeader, sizeof(BITMAPFILEHEADER), 1, fp);
+    fread(&infoHeader, sizeof(BITMAPINFOHEADER), 1, fp);
+    int width = infoHeader.biWidth;
+    int height = infoHeader.biHeight;
+    */
+    // 与上面等价的代码
     fseek(fp, 18, SEEK_SET);
     int width, height;
     fread(&width, sizeof(int), 1, fp);
@@ -485,45 +468,6 @@ void displayImage(BitmapImage image, int posX, int posY)
     setCursorPos(0, posY);
     puts(strBuffer);
     fflush(stdout);
-}
-
-BOOLEAN playMusic(const char *filePath)
-{
-    if (SDL_Init(SDL_INIT_AUDIO) < 0)
-    {
-        fprintf(stderr, "无法初始化 SDL: %s\n", SDL_GetError());
-        return 0;
-    }
-
-    // 初始化 SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
-    {
-        fprintf(stderr, "无法初始化 SDL_mixer: %s\n", Mix_GetError());
-        SDL_Quit();
-        return 0;
-    }
-
-    // 加载 MP3 文件
-    Mix_Music *music = Mix_LoadMUS(filePath);
-    if (music == NULL)
-    {
-        fprintf(stderr, "无法加载音频文件: %s\n", Mix_GetError());
-        Mix_CloseAudio();
-        SDL_Quit();
-        return 0;
-    }
-
-    // 播放音乐
-    if (Mix_PlayMusic(music, 1) == -1)
-    {
-        fprintf(stderr, "无法播放音频: %s\n", Mix_GetError());
-        Mix_FreeMusic(music);
-        Mix_CloseAudio();
-        SDL_Quit();
-        return 0;
-    }
-
-    return 1;
 }
 
 // 读取歌词文件数据
@@ -607,29 +551,25 @@ void playLyrics(LyricLine *lyrics, int lineNums)
 {
 #define _time_in_ms() ((time(NULL) - start) * 1000)
 
+// 用于响应停止信号的宏，需要在 Unix 上实际定义
+#ifndef RESPONSE_STOP
+#define RESPONSE_STOP
+#endif
+
     clock_t startTime = _time_in_ms() + DELAY;
 
     for (int i = 0; i < lineNums; ++i)
     {
-        if (stop)
-        {
-            break;
-        }
+        RESPONSE_STOP
 
         // 等待到第i行歌词的播放时间
         while (_time_in_ms() < lyrics[i].time + startTime)
         {
-            if (stop)
-            {
-                break;
-            }
+            RESPONSE_STOP
             usleep(100000);
         }
 
-        if (stop)
-        {
-            break;
-        }
+        RESPONSE_STOP
 
         // j表示打印歌词的开始行数，end表示打印歌词的结束行数，默认为打印 第i-4行 到 第i+3行 的7行歌词
         int j = i - 4, end = i + 3;
@@ -694,8 +634,34 @@ void playLyrics(LyricLine *lyrics, int lineNums)
 
 int main()
 {
-    // 注册 SIGINT 信号处理函数
+#ifdef _WIN32
+    // 设置控制台编码方式为utf-8
+    system("chcp 65001");
+    SetConsoleOutputCP(CP_UTF8);
+    // 设置控制台字体为黑体，防止出现乱码
+    CONSOLE_FONT_INFOEX cfi;
+    cfi.cbSize = sizeof(cfi);
+    cfi.dwFontSize.X = 8;
+    cfi.dwFontSize.Y = 16;
+    wcscpy_s(cfi.FaceName, 32, L"SimHei");
+
+    SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
+
+    // 获取控制台的HANDLE
+    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole == INVALID_HANDLE_VALUE)
+        error("获取控制台句柄失败！");
+
+    // 启用Windows虚拟终端序列支持
+    if (!enableVTMode())
+        error("无法开启终端虚拟序列支持！");
+
+    // 设置控制台窗口大小(在 Windows Terminal 中无效)
+    system("mode con cols=121 lines=31");
+#else
+    // 注册 SIGINT 信号处理函数，用于在按下 Ctrl+C 时清理资源并退出
     signal(SIGINT, handle_sigint);
+#endif
 
     printf("\033[0m\n");   // 清除文字样式
     printf("\033[?25l\n"); // 隐藏光标
@@ -706,7 +672,12 @@ int main()
     // 设置控制台缓冲区大小
     setvbuf(stdout, NULL, _IOFBF, (FRAME_WIDTH + 1) * (FRAME_HEIGHT + 1) * 24);
 
+    // 控制台清屏
+#ifdef _WIN32
+    system("cls");
+#else
     system("clear");
+#endif
 
     // 读取 图片数据 以及 歌词数据
     readBitmap(PIC1_PATH, &pic1);
@@ -727,14 +698,22 @@ int main()
     free(lyrics);
     free(pic1.pixels);
     free(pic2.pixels);
+#ifndef _WIN32
+    // SDL 清理资源
     Mix_CloseAudio();
     SDL_Quit();
-    system("clear");
+#endif
 
-    printf("\033[0m\n"); // 清除文字样式
-    if (stop != 1)
-    {
-        getchar();
-    }
+    // 清除文字样式
+    printf("\033[0m\n");
+
+#ifdef _WIN32
+    system("pause");
+#else
+    // Unix 没有 pause 的等价命令
+    // 所以用 getchar() 代替
+    getchar();
+#endif
+
     return 0;
 }
