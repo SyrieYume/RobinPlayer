@@ -517,6 +517,7 @@ BOOLEAN playMusic(const char* filePath) {
     sprintf_s(command, 100, "play playsound_134 from 0 to %s", buff);
     func_mciSendStringA(command, buff, 254, NULL);
 
+    FreeLibrary(module);
     return TRUE;
 }
 
